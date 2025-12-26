@@ -104,15 +104,17 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
             </div>
             
             {/* Book Cover */}
-            <div className="w-full aspect-[2/3] max-w-[240px] rounded-xl overflow-hidden shadow-lg mb-4">
-              <img
-                src={book.coverURL || '/placeholder.svg'}
-                alt={`Cover of ${book.title}`}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/placeholder.svg';
-                }}
-              />
+            <div className="w-full max-w-[240px] rounded-xl overflow-hidden shadow-lg mb-4">
+              <div className="relative aspect-[2/3] w-full">
+                <img
+                  src={book.coverURL || '/placeholder.svg'}
+                  alt={`Cover of ${book.title}`}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/placeholder.svg';
+                  }}
+                />
+              </div>
             </div>
             
             {/* Book Title & Author */}
