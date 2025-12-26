@@ -1,5 +1,7 @@
 import { Library } from 'lucide-react';
+import { useEffect } from 'react';
 import { useBooks } from '@/hooks/useBooks';
+import { useReadingStreak } from '@/hooks/useReadingStreak';
 import { DashboardStats } from '@/components/DashboardStats';
 import { FilterTabs } from '@/components/FilterTabs';
 import { BookCard } from '@/components/BookCard';
@@ -22,6 +24,20 @@ const Index = () => {
     deleteBook, 
     stats 
   } = useBooks();
+
+  const { streak, markTodayAsRead } = useReadingStreak();
+
+  // Mark as read when user updates any book (reading activity)
+  const handleUpdateBook = (id: number, updates: Parameters<typeof updateBook>[1]) => {
+    updateBook(id, updates);
+    markTodayAsRead();
+  };
+
+  // Also mark when adding a book
+  const handleAddBook = (bookData: Parameters<typeof addBook>[0]) => {
+    addBook(bookData);
+    markTodayAsRead();
+  };
 
   const counts = {
     all: allBooks.length,
@@ -50,7 +66,7 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <AddBookForm onAdd={addBook} />
+            <AddBookForm onAdd={handleAddBook} />
           </div>
         </div>
       </header>
@@ -62,6 +78,7 @@ const Index = () => {
             totalBooks={stats.totalBooks}
             completed={stats.completed}
             pagesRead={stats.pagesRead}
+            streak={streak}
           />
         </section>
 
@@ -93,7 +110,7 @@ const Index = () => {
                 <BookCard
                   key={book.id}
                   book={book}
-                  onUpdate={updateBook}
+                  onUpdate={handleUpdateBook}
                   onDelete={deleteBook}
                   index={index}
                 />
