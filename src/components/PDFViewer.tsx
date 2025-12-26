@@ -14,6 +14,7 @@ import { PDFAnnotation } from '@/types/book';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PDFAnnotationCanvas } from './PDFAnnotationCanvas';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -78,12 +79,23 @@ export function PDFViewer({
     const sidebarWidth = showThumbnails ? 180 : 0;
     const annotationPanelWidth = showAnnotationPanel ? 320 : 0;
     const availableWidth = containerWidth - sidebarWidth - annotationPanelWidth - 80;
+    const availableHeight = window.innerHeight - 200; // Account for header/toolbar
     
-    if (viewMode === 'double') {
-      return Math.min((availableWidth / 2) - 16, 600) * scale;
-    } else if (viewMode === 'fit') {
-      return availableWidth * scale;
+    if (viewMode === 'fit') {
+      // Fit to screen - calculate based on available space
+      // Estimate page aspect ratio (typical is ~0.7 width/height for letter)
+      const aspectRatio = 0.707; // A4 aspect ratio
+      const fitByHeight = availableHeight * aspectRatio;
+      const fitByWidth = availableWidth * 0.95;
+      return Math.min(fitByHeight, fitByWidth) * scale;
+    } else if (viewMode === 'double') {
+      // Two-page view - fit both pages side by side
+      const maxWidthPerPage = (availableWidth / 2) - 20;
+      const aspectRatio = 0.707;
+      const fitByHeight = availableHeight * aspectRatio * 0.9;
+      return Math.min(maxWidthPerPage, fitByHeight, 600) * scale;
     }
+    // Single page mode
     return Math.min(availableWidth * 0.8, 800) * scale;
   }, [containerWidth, viewMode, scale, showThumbnails, showAnnotationPanel]);
 
@@ -102,16 +114,19 @@ export function PDFViewer({
   const handleZoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
   const handleZoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
   const handleResetZoom = () => setScale(1);
+  
   const handleFitToScreen = () => {
     setScale(1);
-    setViewMode('fit');
+    // In single mode, fit single page. In double mode, fit both pages.
+    if (viewMode !== 'fit') {
+      setViewMode('fit');
+    }
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
-    if (mode === 'fit') {
-      setScale(1);
-    }
+    // Reset scale when changing modes for proper fit
+    setScale(1);
   };
 
   const handleToolSelect = (tool: AnnotationTool) => {
@@ -496,7 +511,7 @@ export function PDFViewer({
                         id={`pdf-page-${pageNum}`}
                         data-page-number={pageNum}
                         className={cn(
-                          "bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
+                          "relative bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
                           currentPage === pageNum && "ring-2 ring-primary"
                         )}
                       >
@@ -507,6 +522,19 @@ export function PDFViewer({
                           renderAnnotationLayer={true}
                           className="select-text"
                         />
+                        {activeTool && activeTool !== 'select' && activeTool !== 'note' && (
+                          <PDFAnnotationCanvas
+                            pageNumber={pageNum}
+                            width={getPageWidth()}
+                            height={getPageWidth() / 0.707}
+                            activeTool={activeTool}
+                            selectedColor={selectedColor}
+                            annotations={localAnnotations}
+                            onAddAnnotation={(type, content, position) => {
+                              addAnnotation(type, content, position);
+                            }}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -521,7 +549,7 @@ export function PDFViewer({
                     id={`pdf-page-${pageNum}`}
                     data-page-number={pageNum}
                     className={cn(
-                      "bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
+                      "relative bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
                       currentPage === pageNum && "ring-2 ring-primary"
                     )}
                   >
@@ -532,6 +560,19 @@ export function PDFViewer({
                       renderAnnotationLayer={true}
                       className="select-text"
                     />
+                    {activeTool && activeTool !== 'select' && activeTool !== 'note' && (
+                      <PDFAnnotationCanvas
+                        pageNumber={pageNum}
+                        width={getPageWidth()}
+                        height={getPageWidth() / 0.707}
+                        activeTool={activeTool}
+                        selectedColor={selectedColor}
+                        annotations={localAnnotations}
+                        onAddAnnotation={(type, content, position) => {
+                          addAnnotation(type, content, position);
+                        }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
