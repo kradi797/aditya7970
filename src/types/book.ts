@@ -1,3 +1,8 @@
+export interface PageReflection {
+  page: number;
+  text: string;
+}
+
 export interface Book {
   id: number;
   title: string;
@@ -5,7 +10,8 @@ export interface Book {
   totalPages: number;
   currentPage: number;
   coverURL: string;
-  notes: string;
+  notes: string; // Overall reflection
+  pageReflections: PageReflection[];
 }
 
 export type BookStatus = 'Reading' | 'Completed';
