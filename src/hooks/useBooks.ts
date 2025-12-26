@@ -6,7 +6,12 @@ const STORAGE_KEY = 'book-tracker-library';
 function loadBooks(): Book[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const books = stored ? JSON.parse(stored) : [];
+    // Migrate old books to include pageReflections
+    return books.map((book: Book) => ({
+      ...book,
+      pageReflections: book.pageReflections || [],
+    }));
   } catch {
     return [];
   }
@@ -24,12 +29,13 @@ export function useBooks() {
     saveBooks(books);
   }, [books]);
 
-  const addBook = useCallback((bookData: Omit<Book, 'id' | 'currentPage' | 'notes'>) => {
+  const addBook = useCallback((bookData: Omit<Book, 'id' | 'currentPage' | 'notes' | 'pageReflections'>) => {
     const newBook: Book = {
       ...bookData,
       id: Date.now(),
       currentPage: 0,
       notes: '',
+      pageReflections: [],
     };
     setBooks(prev => [...prev, newBook]);
   }, []);
