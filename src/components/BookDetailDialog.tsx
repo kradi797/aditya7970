@@ -161,7 +161,7 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
                     setNewPage(book.currentPage.toString());
                     setIsAdding(true);
                   }}
-                  className="h-8 flex-shrink-0"
+                  className="h-8 flex-shrink-0 mr-2"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add
