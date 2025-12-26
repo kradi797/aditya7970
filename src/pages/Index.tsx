@@ -82,21 +82,17 @@ const Index = () => {
           />
         </section>
 
-        {/* Search Bar */}
-        <section className="mb-6 animate-slide-up" style={{ animationDelay: '50ms' }}>
-          <SearchBar 
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="max-w-md"
-          />
-        </section>
-
-        {/* Filter Tabs */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        {/* Filter Tabs + Search Bar */}
+        <section className="mb-8 animate-slide-up flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ animationDelay: '50ms' }}>
           <FilterTabs 
             filter={filter} 
             onFilterChange={setFilter}
             counts={counts}
+          />
+          <SearchBar 
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="w-full sm:w-auto sm:min-w-[280px]"
           />
         </section>
 
