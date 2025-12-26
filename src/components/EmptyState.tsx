@@ -1,4 +1,4 @@
-import { BookOpen, Library } from 'lucide-react';
+import { BookOpen, Library, Clock } from 'lucide-react';
 import { FilterType } from '@/types/book';
 
 interface EmptyStateProps {
@@ -6,7 +6,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ filter }: EmptyStateProps) {
-  const messages = {
+  const messages: Record<FilterType, { icon: typeof Library; title: string; description: string }> = {
     All: {
       icon: Library,
       title: "Your library is empty",
@@ -21,6 +21,11 @@ export function EmptyState({ filter }: EmptyStateProps) {
       icon: BookOpen,
       title: "No completed books yet",
       description: "Keep reading! Your finished books will appear here."
+    },
+    Later: {
+      icon: Clock,
+      title: "No books saved for later",
+      description: "Save books you want to read in the future here."
     }
   };
 
