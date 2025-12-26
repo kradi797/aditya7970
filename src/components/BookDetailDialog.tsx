@@ -141,8 +141,6 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
         pdfURL={book.pdfURL}
         bookTitle={book.title}
         onClose={() => setShowPDFViewer(false)}
-        annotations={book.pdfAnnotations}
-        onSaveAnnotations={handleSaveAnnotations}
       />
     );
   }

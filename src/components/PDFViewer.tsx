@@ -3,109 +3,155 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { 
-  X, ZoomIn, ZoomOut, Maximize2, Download, 
-  BookOpen, Columns2, Highlighter, MessageSquare, 
-  Pencil, Trash2, RotateCcw, Save, ChevronLeft, 
-  ChevronRight, List, Grid3X3, Minus, Plus,
-  Type, MousePointer
+  X, ZoomIn, ZoomOut, Download, 
+  BookOpen, Columns2, ChevronLeft, 
+  ChevronRight, Grid3X3, Search,
+  Maximize, ArrowDownToLine, ArrowRightToLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PDFAnnotation } from '@/types/book';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PDFAnnotationCanvas } from './PDFAnnotationCanvas';
+import { Input } from '@/components/ui/input';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 type ViewMode = 'single' | 'double';
-type AnnotationTool = 'select' | 'highlight' | 'note' | 'draw' | 'text' | null;
+type FitMode = 'none' | 'width' | 'height' | 'screen';
 
 interface PDFViewerProps {
   pdfURL: string;
   bookTitle: string;
   onClose: () => void;
-  annotations?: PDFAnnotation[];
-  onSaveAnnotations?: (annotations: PDFAnnotation[]) => void;
 }
 
-const annotationColors = [
-  { name: 'Yellow', value: '#FBBF24' },
-  { name: 'Green', value: '#34D399' },
-  { name: 'Blue', value: '#60A5FA' },
-  { name: 'Pink', value: '#F472B6' },
-  { name: 'Orange', value: '#FB923C' },
-  { name: 'Red', value: '#EF4444' },
-];
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+const STORAGE_KEY_PREFIX = 'pdf-viewer-state-';
 
-export function PDFViewer({ 
-  pdfURL, 
-  bookTitle, 
-  onClose, 
-  annotations = [], 
-  onSaveAnnotations 
-}: PDFViewerProps) {
+export function PDFViewer({ pdfURL, bookTitle, onClose }: PDFViewerProps) {
+  // Core state
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.0);
-  const [viewMode, setViewMode] = useState<ViewMode>('double');
-  const [fitToScreen, setFitToScreen] = useState<boolean>(true);
-  const [activeTool, setActiveTool] = useState<AnnotationTool>('select');
-  const [selectedColor, setSelectedColor] = useState(annotationColors[0].value);
-  const [localAnnotations, setLocalAnnotations] = useState<PDFAnnotation[]>(annotations);
-  const [showThumbnails, setShowThumbnails] = useState(true);
-  const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [scale, setScale] = useState<number>(1);
+  const [viewMode, setViewMode] = useState<ViewMode>('single');
+  const [fitMode, setFitMode] = useState<FitMode>('screen');
+  const [showThumbnails, setShowThumbnails] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [containerWidth, setContainerWidth] = useState(0);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  
+  // Layout measurements
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [pageSize, setPageSize] = useState({ width: 612, height: 792 }); // Default letter size
+  
+  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pageInputRef = useRef<HTMLInputElement>(null);
 
-  // Calculate responsive page width
+  // Generate storage key from PDF URL
+  const storageKey = `${STORAGE_KEY_PREFIX}${btoa(pdfURL).slice(0, 20)}`;
+
+  // Load saved state on mount
   useEffect(() => {
-    const updateWidth = () => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.currentPage) setCurrentPage(state.currentPage);
+        if (state.scale) setScale(state.scale);
+        if (state.viewMode) setViewMode(state.viewMode);
+        if (state.fitMode) setFitMode(state.fitMode);
+      }
+    } catch (e) {
+      console.error('Failed to load PDF viewer state:', e);
+    }
+  }, [storageKey]);
+
+  // Save state on changes
+  useEffect(() => {
+    if (numPages > 0) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({
+          currentPage,
+          scale,
+          viewMode,
+          fitMode
+        }));
+      } catch (e) {
+        console.error('Failed to save PDF viewer state:', e);
+      }
+    }
+  }, [currentPage, scale, viewMode, fitMode, numPages, storageKey]);
+
+  // Measure container size
+  useEffect(() => {
+    const updateSize = () => {
       if (containerRef.current) {
-        const width = containerRef.current.clientWidth;
-        setContainerWidth(width);
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerSize({ width: rect.width, height: rect.height });
       }
     };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
   }, [showThumbnails]);
 
+  // Calculate effective page width based on fit mode
   const getPageWidth = useCallback(() => {
     const sidebarWidth = showThumbnails ? 180 : 0;
-    const annotationPanelWidth = showAnnotationPanel ? 320 : 0;
-    const availableWidth = containerWidth - sidebarWidth - annotationPanelWidth - 80;
-    const availableHeight = window.innerHeight - 200;
-    const aspectRatio = 0.707; // A4 aspect ratio
+    const availableWidth = containerSize.width - sidebarWidth - 60;
+    const availableHeight = containerSize.height - 40;
+    const aspectRatio = pageSize.height / pageSize.width;
+    
+    if (fitMode === 'none') {
+      return pageSize.width * scale;
+    }
     
     if (viewMode === 'double') {
-      // Two-page view
-      const maxWidthPerPage = (availableWidth / 2) - 20;
-      if (fitToScreen) {
-        const fitByHeight = availableHeight * aspectRatio * 0.85;
-        return Math.min(maxWidthPerPage, fitByHeight) * scale;
+      const perPageWidth = (availableWidth / 2) - 20;
+      
+      switch (fitMode) {
+        case 'width':
+          return perPageWidth * scale;
+        case 'height':
+          return (availableHeight / aspectRatio) * scale;
+        case 'screen':
+          const fitByWidth = perPageWidth;
+          const fitByHeight = availableHeight / aspectRatio;
+          return Math.min(fitByWidth, fitByHeight) * scale;
+        default:
+          return perPageWidth * scale;
       }
-      return Math.min(maxWidthPerPage, 500) * scale;
     } else {
-      // Single page mode
-      if (fitToScreen) {
-        const fitByHeight = availableHeight * aspectRatio;
-        const fitByWidth = availableWidth * 0.9;
-        return Math.min(fitByHeight, fitByWidth) * scale;
+      switch (fitMode) {
+        case 'width':
+          return availableWidth * 0.95 * scale;
+        case 'height':
+          return (availableHeight / aspectRatio) * scale;
+        case 'screen':
+          const fitByWidth = availableWidth * 0.95;
+          const fitByHeight = availableHeight / aspectRatio;
+          return Math.min(fitByWidth, fitByHeight) * scale;
+        default:
+          return availableWidth * 0.7 * scale;
       }
-      return Math.min(availableWidth * 0.7, 700) * scale;
     }
-  }, [containerWidth, viewMode, scale, showThumbnails, showAnnotationPanel, fitToScreen]);
+  }, [containerSize, viewMode, scale, showThumbnails, fitMode, pageSize]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setIsLoading(false);
     toast.success(`PDF loaded: ${numPages} pages`);
+  };
+
+  const onPageLoadSuccess = (page: any) => {
+    if (pageSize.width === 612) { // Only update if still default
+      setPageSize({ width: page.width, height: page.height });
+    }
   };
 
   const onDocumentLoadError = (error: Error) => {
@@ -114,42 +160,50 @@ export function PDFViewer({
     toast.error('Failed to load PDF');
   };
 
+  // Zoom controls
   const handleZoomIn = () => {
-    setFitToScreen(false);
-    setScale(prev => Math.min(prev + 0.25, 3));
+    setFitMode('none');
+    const currentIndex = ZOOM_STEPS.findIndex(s => s >= scale);
+    if (currentIndex < ZOOM_STEPS.length - 1) {
+      setScale(ZOOM_STEPS[currentIndex + 1]);
+    }
   };
+
   const handleZoomOut = () => {
-    setFitToScreen(false);
-    setScale(prev => Math.max(prev - 0.25, 0.5));
+    setFitMode('none');
+    const currentIndex = ZOOM_STEPS.findIndex(s => s >= scale);
+    if (currentIndex > 0) {
+      setScale(ZOOM_STEPS[currentIndex - 1]);
+    }
   };
-  const handleResetZoom = () => {
+
+  // Fit mode handlers
+  const handleFitWidth = () => {
     setScale(1);
-    setFitToScreen(false);
+    setFitMode('width');
   };
-  
-  const handleFitToScreen = () => {
+
+  const handleFitHeight = () => {
     setScale(1);
-    setFitToScreen(true);
+    setFitMode('height');
+  };
+
+  const handleFitScreen = () => {
+    setScale(1);
+    setFitMode('screen');
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     setScale(1);
-    setFitToScreen(true);
+    setFitMode('screen');
   };
 
-  const handleToolSelect = (tool: AnnotationTool) => {
-    setActiveTool(tool);
-    if (tool === 'note') {
-      setShowAnnotationPanel(true);
-    }
-  };
-
+  // Page navigation
   const goToPage = (page: number) => {
     const validPage = Math.max(1, Math.min(page, numPages));
     setCurrentPage(validPage);
     
-    // Scroll to the page
     const pageElement = document.getElementById(`pdf-page-${validPage}`);
     if (pageElement) {
       pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -157,70 +211,25 @@ export function PDFViewer({
   };
 
   const handlePrevPage = () => {
-    if (viewMode === 'double') {
-      goToPage(currentPage - 2);
-    } else {
-      goToPage(currentPage - 1);
-    }
+    const step = viewMode === 'double' ? 2 : 1;
+    goToPage(currentPage - step);
   };
 
   const handleNextPage = () => {
-    if (viewMode === 'double') {
-      goToPage(currentPage + 2);
-    } else {
-      goToPage(currentPage + 1);
+    const step = viewMode === 'double' ? 2 : 1;
+    goToPage(currentPage + step);
+  };
+
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const value = parseInt((e.target as HTMLInputElement).value, 10);
+      if (!isNaN(value)) {
+        goToPage(value);
+      }
     }
   };
 
-  const addAnnotation = useCallback((type: PDFAnnotation['type'], content: string, position: PDFAnnotation['position']) => {
-    const newAnnotation: PDFAnnotation = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      page: currentPage,
-      type,
-      content,
-      color: selectedColor,
-      position,
-      createdAt: Date.now(),
-    };
-    setLocalAnnotations(prev => [...prev, newAnnotation]);
-    setHasUnsavedChanges(true);
-    
-    // Auto-save
-    if (onSaveAnnotations) {
-      setTimeout(() => {
-        onSaveAnnotations([...localAnnotations, newAnnotation]);
-        toast.success('Auto-saved');
-      }, 500);
-    }
-  }, [currentPage, selectedColor, localAnnotations, onSaveAnnotations]);
-
-  const deleteAnnotation = useCallback((id: string) => {
-    const updated = localAnnotations.filter(a => a.id !== id);
-    setLocalAnnotations(updated);
-    setHasUnsavedChanges(true);
-    
-    // Auto-save
-    if (onSaveAnnotations) {
-      onSaveAnnotations(updated);
-      toast.success('Annotation deleted');
-    }
-  }, [localAnnotations, onSaveAnnotations]);
-
-  const handleSave = useCallback(() => {
-    if (onSaveAnnotations) {
-      onSaveAnnotations(localAnnotations);
-      setHasUnsavedChanges(false);
-      toast.success('Annotations saved');
-    }
-  }, [localAnnotations, onSaveAnnotations]);
-
-  const handleAddNote = () => {
-    if (!noteText.trim()) return;
-    addAnnotation('note', noteText, { x: 50, y: 50 });
-    setNoteText('');
-  };
-
-  // Generate page pairs for continuous two-page scrolling
+  // Generate page pairs for two-page view
   const getPagePairs = () => {
     const pairs: number[][] = [];
     for (let i = 1; i <= numPages; i += 2) {
@@ -233,7 +242,7 @@ export function PDFViewer({
     return pairs;
   };
 
-  // Handle scroll to track current page
+  // Track current page on scroll
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
     
@@ -257,6 +266,43 @@ export function PDFViewer({
     setCurrentPage(closestPage);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          handlePrevPage();
+          break;
+        case 'ArrowRight':
+          handleNextPage();
+          break;
+        case '+':
+        case '=':
+          handleZoomIn();
+          break;
+        case '-':
+          handleZoomOut();
+          break;
+        case 'Escape':
+          onClose();
+          break;
+        case 'f':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            setShowSearch(true);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, numPages, viewMode]);
+
+  const calculatedWidth = getPageWidth();
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-background" ref={containerRef}>
       {/* Header */}
@@ -265,12 +311,9 @@ export function PDFViewer({
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
-          <h2 className="font-display text-lg font-semibold text-foreground truncate max-w-[150px] sm:max-w-[250px]">
+          <h2 className="font-display text-lg font-semibold text-foreground truncate max-w-[200px] sm:max-w-[300px]">
             {bookTitle}
           </h2>
-          {hasUnsavedChanges && (
-            <span className="text-xs text-amber-500 font-medium">• Unsaved</span>
-          )}
         </div>
         
         {/* View Mode Controls */}
@@ -291,40 +334,75 @@ export function PDFViewer({
             className="h-7 px-2 text-xs"
           >
             <Columns2 className="h-3.5 w-3.5 mr-1" />
-            Two Page
-          </Button>
-          <Button
-            variant={fitToScreen ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={handleFitToScreen}
-            className="h-7 px-2 text-xs"
-          >
-            <Maximize2 className="h-3.5 w-3.5 mr-1" />
-            Fit
+            Spread
           </Button>
         </div>
 
-        {/* Zoom & Navigation Controls */}
+        {/* Fit Mode Controls */}
+        <div className="hidden lg:flex items-center gap-1 bg-muted rounded-lg p-1">
+          <Button
+            variant={fitMode === 'width' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={handleFitWidth}
+            className="h-7 px-2 text-xs"
+            title="Fit Width"
+          >
+            <ArrowRightToLine className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={fitMode === 'height' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={handleFitHeight}
+            className="h-7 px-2 text-xs"
+            title="Fit Height"
+          >
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={fitMode === 'screen' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={handleFitScreen}
+            className="h-7 px-2 text-xs"
+            title="Fit Screen"
+          >
+            <Maximize className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        {/* Zoom Controls */}
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1 bg-muted rounded-lg p-1">
-            <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={scale <= 0.5} className="h-7 w-7 p-0">
-              <Minus className="h-3.5 w-3.5" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleZoomOut} 
+              disabled={scale <= ZOOM_STEPS[0]} 
+              className="h-7 w-7 p-0"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
             </Button>
-            <span className="text-xs text-foreground min-w-[45px] text-center font-medium">{Math.round(scale * 100)}%</span>
-            <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={scale >= 3} className="h-7 w-7 p-0">
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleResetZoom} className="h-7 w-7 p-0">
-              <RotateCcw className="h-3.5 w-3.5" />
+            <span className="text-xs text-foreground min-w-[45px] text-center font-medium">
+              {Math.round(scale * 100)}%
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleZoomIn} 
+              disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} 
+              className="h-7 w-7 p-0"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
             </Button>
           </div>
           
-          {hasUnsavedChanges && (
-            <Button variant="default" size="sm" onClick={handleSave} className="h-7 gap-1 text-xs">
-              <Save className="h-3.5 w-3.5" />
-              Save
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSearch(!showSearch)}
+            className={cn("h-7 w-7 p-0", showSearch && "bg-muted")}
+          >
+            <Search className="h-3.5 w-3.5" />
+          </Button>
           
           <a href={pdfURL} download target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="h-7 w-7 p-0">
@@ -334,113 +412,89 @@ export function PDFViewer({
         </div>
       </header>
       
+      {/* Search Bar */}
+      {showSearch && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card/80 shrink-0">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search in PDF... (Note: Text search requires text layer)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 flex-1 max-w-md"
+            autoFocus
+          />
+          <Button variant="ghost" size="sm" onClick={() => setShowSearch(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+      
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 shrink-0">
-        {/* Left Tools */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowThumbnails(!showThumbnails)}
-            className={cn("h-8 px-2", showThumbnails && "bg-muted")}
-          >
-            <Grid3X3 className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline text-xs">Thumbnails</span>
-          </Button>
-          
-          <div className="h-6 w-px bg-border" />
-          
-          {/* Annotation Tools */}
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <Button
-              variant={activeTool === 'select' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleToolSelect('select')}
-              className="h-7 px-2"
-              title="Select"
-            >
-              <MousePointer className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant={activeTool === 'highlight' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleToolSelect('highlight')}
-              className="h-7 px-2"
-              title="Highlight"
-            >
-              <Highlighter className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant={activeTool === 'note' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleToolSelect('note')}
-              className="h-7 px-2"
-              title="Add Note"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant={activeTool === 'draw' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleToolSelect('draw')}
-              className="h-7 px-2"
-              title="Draw"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant={activeTool === 'text' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleToolSelect('text')}
-              className="h-7 px-2"
-              title="Add Text"
-            >
-              <Type className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Color Picker */}
-        {activeTool && activeTool !== 'select' && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:block">Color:</span>
-            <div className="flex items-center gap-1">
-              {annotationColors.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => setSelectedColor(color.value)}
-                  className={cn(
-                    "w-5 h-5 rounded-full transition-transform border-2",
-                    selectedColor === color.value 
-                      ? "border-foreground scale-110" 
-                      : "border-transparent hover:scale-105"
-                  )}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowThumbnails(!showThumbnails)}
+          className={cn("h-8 px-2", showThumbnails && "bg-muted")}
+        >
+          <Grid3X3 className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline text-xs">Thumbnails</span>
+        </Button>
 
         {/* Page Navigation */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1} className="h-7 w-7 p-0">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handlePrevPage} 
+            disabled={currentPage <= 1} 
+            className="h-7 w-7 p-0"
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-1">
-            <input
+            <Input
+              ref={pageInputRef}
               type="number"
               min={1}
               max={numPages}
               value={currentPage}
-              onChange={(e) => goToPage(parseInt(e.target.value, 10))}
-              className="w-12 h-7 text-center text-xs border border-input rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              onChange={(e) => setCurrentPage(parseInt(e.target.value, 10) || 1)}
+              onKeyDown={handlePageInputKeyDown}
+              onBlur={(e) => goToPage(parseInt(e.target.value, 10))}
+              className="w-14 h-7 text-center text-xs"
             />
             <span className="text-xs text-muted-foreground">/ {numPages}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleNextPage} disabled={currentPage >= numPages} className="h-7 w-7 p-0">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleNextPage} 
+            disabled={currentPage >= numPages} 
+            className="h-7 w-7 p-0"
+          >
             <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Mobile view mode toggle */}
+        <div className="flex md:hidden items-center gap-1">
+          <Button
+            variant={viewMode === 'single' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => handleViewModeChange('single')}
+            className="h-7 w-7 p-0"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant={viewMode === 'double' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => handleViewModeChange('double')}
+            className="h-7 w-7 p-0"
+          >
+            <Columns2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -500,19 +554,15 @@ export function PDFViewer({
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
             loading={null}
-            className={cn(
-              "flex flex-col items-center py-6",
-              viewMode === 'double' && "items-center"
-            )}
+            className="flex flex-col items-center py-6"
           >
             {viewMode === 'double' ? (
-              // Two-page continuous scrolling
+              // Two-page spread view
               <div className="space-y-6">
                 {getPagePairs().map((pair, index) => (
                   <div 
                     key={index} 
                     className="flex gap-4 justify-center"
-                    id={`pdf-page-pair-${index}`}
                   >
                     {pair.map((pageNum) => (
                       <div
@@ -520,37 +570,25 @@ export function PDFViewer({
                         id={`pdf-page-${pageNum}`}
                         data-page-number={pageNum}
                         className={cn(
-                          "relative bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
+                          "bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
                           currentPage === pageNum && "ring-2 ring-primary"
                         )}
                       >
                         <Page
                           pageNumber={pageNum}
-                          width={getPageWidth()}
+                          width={calculatedWidth}
                           renderTextLayer={true}
                           renderAnnotationLayer={true}
+                          onLoadSuccess={pageNum === 1 ? onPageLoadSuccess : undefined}
                           className="select-text"
                         />
-                        {activeTool && activeTool !== 'select' && activeTool !== 'note' && (
-                          <PDFAnnotationCanvas
-                            pageNumber={pageNum}
-                            width={getPageWidth()}
-                            height={getPageWidth() / 0.707}
-                            activeTool={activeTool}
-                            selectedColor={selectedColor}
-                            annotations={localAnnotations}
-                            onAddAnnotation={(type, content, position) => {
-                              addAnnotation(type, content, position);
-                            }}
-                          />
-                        )}
                       </div>
                     ))}
                   </div>
                 ))}
               </div>
             ) : (
-              // Single page or fit mode continuous scrolling
+              // Single page view
               <div className="space-y-6">
                 {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
                   <div
@@ -558,144 +596,44 @@ export function PDFViewer({
                     id={`pdf-page-${pageNum}`}
                     data-page-number={pageNum}
                     className={cn(
-                      "relative bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
+                      "bg-white rounded-lg shadow-lg overflow-hidden transition-shadow",
                       currentPage === pageNum && "ring-2 ring-primary"
                     )}
                   >
                     <Page
                       pageNumber={pageNum}
-                      width={getPageWidth()}
+                      width={calculatedWidth}
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
+                      onLoadSuccess={pageNum === 1 ? onPageLoadSuccess : undefined}
                       className="select-text"
                     />
-                    {activeTool && activeTool !== 'select' && activeTool !== 'note' && (
-                      <PDFAnnotationCanvas
-                        pageNumber={pageNum}
-                        width={getPageWidth()}
-                        height={getPageWidth() / 0.707}
-                        activeTool={activeTool}
-                        selectedColor={selectedColor}
-                        annotations={localAnnotations}
-                        onAddAnnotation={(type, content, position) => {
-                          addAnnotation(type, content, position);
-                        }}
-                      />
-                    )}
                   </div>
                 ))}
               </div>
             )}
           </Document>
         </div>
-
-        {/* Annotation Panel */}
-        {showAnnotationPanel && (
-          <div className="w-80 border-l border-border bg-card shrink-0 flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <h3 className="font-semibold text-foreground">Annotations</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowAnnotationPanel(false)} className="h-8 w-8">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="p-4 border-b border-border">
-              <h4 className="text-sm font-medium text-foreground mb-2">Add Note</h4>
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Write your note for page ${currentPage}..."
-                className="w-full h-24 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <div className="flex gap-2 mt-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setNoteText('')}>
-                  Clear
-                </Button>
-                <Button size="sm" className="flex-1" onClick={handleAddNote} disabled={!noteText.trim()}>
-                  Add Note
-                </Button>
-              </div>
-            </div>
-
-            <ScrollArea className="flex-1">
-              <div className="p-4">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                  All Annotations ({localAnnotations.length})
-                </h4>
-                {localAnnotations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground/60 italic text-center py-4">
-                    No annotations yet
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {localAnnotations
-                      .sort((a, b) => a.page - b.page)
-                      .map((annotation) => (
-                        <div 
-                          key={annotation.id}
-                          className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 group hover:bg-muted transition-colors cursor-pointer"
-                          onClick={() => goToPage(annotation.page)}
-                        >
-                          <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
-                            style={{ backgroundColor: annotation.color }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium text-primary">Page {annotation.page}</span>
-                              <span className="text-xs text-muted-foreground capitalize">{annotation.type}</span>
-                            </div>
-                            <p className="text-sm text-foreground line-clamp-2">
-                              {annotation.content || 'No content'}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteAnnotation(annotation.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
       </div>
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden flex items-center justify-between px-4 py-2 border-t border-border bg-card shrink-0">
         <div className="flex items-center gap-1">
           <Button
-            variant={viewMode === 'single' ? 'secondary' : 'ghost'}
+            variant={fitMode === 'width' ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => handleViewModeChange('single')}
+            onClick={handleFitWidth}
             className="h-8 w-8 p-0"
           >
-            <BookOpen className="h-4 w-4" />
+            <ArrowRightToLine className="h-4 w-4" />
           </Button>
           <Button
-            variant={viewMode === 'double' ? 'secondary' : 'ghost'}
+            variant={fitMode === 'screen' ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => handleViewModeChange('double')}
+            onClick={handleFitScreen}
             className="h-8 w-8 p-0"
           >
-            <Columns2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={fitToScreen ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={handleFitToScreen}
-            className="h-8 w-8 p-0"
-          >
-            <Maximize2 className="h-4 w-4" />
+            <Maximize className="h-4 w-4" />
           </Button>
         </div>
         
@@ -709,14 +647,14 @@ export function PDFViewer({
           </Button>
         </div>
         
-        <Button
-          variant={showAnnotationPanel ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setShowAnnotationPanel(!showAnnotationPanel)}
-          className="h-8 w-8 p-0"
-        >
-          <List className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={scale <= ZOOM_STEPS[0]} className="h-8 w-8 p-0">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} className="h-8 w-8 p-0">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
