@@ -6,6 +6,7 @@ import { BookCard } from '@/components/BookCard';
 import { AddBookForm } from '@/components/AddBookForm';
 import { EmptyState } from '@/components/EmptyState';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { SearchBar } from '@/components/SearchBar';
 import { getBookStatus } from '@/types/book';
 
 const Index = () => {
@@ -14,6 +15,8 @@ const Index = () => {
     allBooks,
     filter, 
     setFilter, 
+    searchQuery,
+    setSearchQuery,
     addBook, 
     updateBook, 
     deleteBook, 
@@ -59,6 +62,15 @@ const Index = () => {
             totalBooks={stats.totalBooks}
             completed={stats.completed}
             pagesRead={stats.pagesRead}
+          />
+        </section>
+
+        {/* Search Bar */}
+        <section className="mb-6 animate-slide-up" style={{ animationDelay: '50ms' }}>
+          <SearchBar 
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="max-w-md"
           />
         </section>
 

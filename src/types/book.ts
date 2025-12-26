@@ -1,10 +1,22 @@
 export type MoodType = 'neutral' | 'sad' | 'happy';
 
+export type PriorityLevel = 'high' | 'medium' | 'low' | 'none';
+
 export interface PageReflection {
   page: number;
   topic: string;
   text: string;
   mood: MoodType;
+}
+
+export interface PDFAnnotation {
+  id: string;
+  page: number;
+  type: 'highlight' | 'note' | 'drawing';
+  content: string;
+  color: string;
+  position: { x: number; y: number; width?: number; height?: number };
+  createdAt: number;
 }
 
 export interface Book {
@@ -18,6 +30,8 @@ export interface Book {
   pageReflections: PageReflection[];
   pdfURL?: string; // URL to uploaded PDF
   status?: 'reading' | 'later'; // For "Later" section
+  priority?: PriorityLevel; // Priority level
+  pdfAnnotations?: PDFAnnotation[]; // PDF annotations
 }
 
 export type BookStatus = 'Reading' | 'Completed' | 'Later';
@@ -43,3 +57,10 @@ export function getMilestones(book: Book): { milestone: number; reached: boolean
     { milestone: 100, reached: progress >= 100 },
   ];
 }
+
+export const priorityConfig: Record<PriorityLevel, { label: string; color: string; bgColor: string }> = {
+  high: { label: 'High', color: 'text-red-500', bgColor: 'bg-red-500/10' },
+  medium: { label: 'Medium', color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+  low: { label: 'Low', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  none: { label: 'None', color: 'text-muted-foreground', bgColor: 'bg-muted' },
+};

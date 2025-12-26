@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { Trash2, BookOpen, CheckCircle2, Pencil, MessageSquare, Clock, FileText } from 'lucide-react';
-import { Book, getBookStatus, getProgressPercentage } from '@/types/book';
+import { Book, getBookStatus, getProgressPercentage, PriorityLevel } from '@/types/book';
 import { EditBookForm } from '@/components/EditBookForm';
 import { BookDetailDialog } from '@/components/BookDetailDialog';
 import { MilestoneProgress } from '@/components/MilestoneProgress';
+import { PriorityBadge } from '@/components/PriorityBadge';
 import { cn } from '@/lib/utils';
 
 interface BookCardProps {
@@ -12,6 +13,8 @@ interface BookCardProps {
   onDelete: (id: number) => void;
   index: number;
 }
+
+const priorityOrder: PriorityLevel[] = ['none', 'low', 'medium', 'high'];
 
 export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -30,6 +33,13 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('textarea')) return;
     setIsDetailOpen(true);
+  };
+
+  const cyclePriority = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentIndex = priorityOrder.indexOf(book.priority || 'none');
+    const nextIndex = (currentIndex + 1) % priorityOrder.length;
+    onUpdate(book.id, { priority: priorityOrder[nextIndex] });
   };
 
   return (
@@ -70,9 +80,19 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
             {status}
           </div>
 
+          {/* Priority Badge */}
+          {(book.priority && book.priority !== 'none') && (
+            <div className="absolute top-3 left-24">
+              <PriorityBadge priority={book.priority} compact onClick={cyclePriority} />
+            </div>
+          )}
+
           {/* PDF Indicator */}
           {book.pdfURL && (
-            <div className="absolute top-3 left-24 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm bg-accent/90 text-accent-foreground">
+            <div className={cn(
+              "absolute top-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm bg-accent/90 text-accent-foreground",
+              book.priority && book.priority !== 'none' ? "left-36" : "left-24"
+            )}>
               <FileText className="h-3 w-3" />
               PDF
             </div>

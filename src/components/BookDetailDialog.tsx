@@ -1,12 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 import { X, Plus, BookOpen, CheckCircle2, Smile, Meh, Frown, Upload, FileText, Clock, BookMarked } from 'lucide-react';
-import { Book, PageReflection, MoodType, getBookStatus, getProgressPercentage } from '@/types/book';
+import { Book, PageReflection, MoodType, getBookStatus, getProgressPercentage, PDFAnnotation } from '@/types/book';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PDFViewer } from './PDFViewer';
 import { MilestoneProgress } from './MilestoneProgress';
+import { PrioritySelector } from './PrioritySelector';
 
 interface BookDetailDialogProps {
   book: Book;
@@ -128,6 +129,10 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
     toast.success(newStatus === 'later' ? 'Added to Read Later' : 'Moved to Reading');
   };
 
+  const handleSaveAnnotations = (annotations: PDFAnnotation[]) => {
+    onUpdate(book.id, { pdfAnnotations: annotations });
+  };
+
   if (!isOpen) return null;
 
   if (showPDFViewer && book.pdfURL) {
@@ -136,6 +141,8 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
         pdfURL={book.pdfURL}
         bookTitle={book.title}
         onClose={() => setShowPDFViewer(false)}
+        annotations={book.pdfAnnotations}
+        onSaveAnnotations={handleSaveAnnotations}
       />
     );
   }
@@ -184,7 +191,14 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
               </Button>
             </div>
 
-            {/* Read PDF Button (above cover) */}
+            {/* Priority Selector */}
+            <div className="self-stretch mb-4">
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">Priority</label>
+              <PrioritySelector 
+                value={book.priority || 'none'} 
+                onChange={(priority) => onUpdate(book.id, { priority })}
+              />
+            </div>
             {book.pdfURL && (
               <Button
                 variant="default"
