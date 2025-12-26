@@ -7,10 +7,11 @@ function loadBooks(): Book[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     const books = stored ? JSON.parse(stored) : [];
-    // Migrate old books to include pageReflections
+    // Migrate old books to include pageReflections and status
     return books.map((book: Book) => ({
       ...book,
       pageReflections: book.pageReflections || [],
+      status: book.status || 'reading',
     }));
   } catch {
     return [];
@@ -36,6 +37,7 @@ export function useBooks() {
       currentPage: 0,
       notes: '',
       pageReflections: [],
+      status: bookData.status || 'reading',
     };
     setBooks(prev => [...prev, newBook]);
   }, []);
@@ -59,6 +61,7 @@ export function useBooks() {
     totalBooks: books.length,
     completed: books.filter(book => getBookStatus(book) === 'Completed').length,
     pagesRead: books.reduce((sum, book) => sum + book.currentPage, 0),
+    later: books.filter(book => getBookStatus(book) === 'Later').length,
   };
 
   return {

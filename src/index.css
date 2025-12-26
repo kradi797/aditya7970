@@ -11,92 +11,94 @@
 
 @layer base {
   :root {
-    /* Soft cream palette - warm and gentle on the eyes */
-    --background: 45 30% 97%;
-    --foreground: 25 15% 20%;
+    /* Warm parchment palette - Apple Books inspired */
+    --background: 40 33% 96%;
+    --foreground: 24 10% 18%;
 
-    --card: 45 35% 99%;
-    --card-foreground: 25 15% 20%;
+    --card: 40 40% 99%;
+    --card-foreground: 24 10% 18%;
 
-    --popover: 45 35% 99%;
-    --popover-foreground: 25 15% 20%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 24 10% 18%;
 
-    /* Sage green - calming primary */
-    --primary: 145 30% 35%;
-    --primary-foreground: 45 30% 97%;
+    /* Warm terracotta primary - cozy and inviting */
+    --primary: 20 55% 45%;
+    --primary-foreground: 40 33% 98%;
 
-    /* Warm sand */
-    --secondary: 38 25% 92%;
-    --secondary-foreground: 25 15% 30%;
+    /* Soft linen secondary */
+    --secondary: 35 28% 91%;
+    --secondary-foreground: 24 10% 25%;
 
-    --muted: 40 18% 90%;
-    --muted-foreground: 25 10% 50%;
+    --muted: 38 22% 88%;
+    --muted-foreground: 24 8% 45%;
 
-    /* Soft mint accent */
-    --accent: 145 20% 94%;
-    --accent-foreground: 145 30% 28%;
+    /* Sage green accent - natural and calming */
+    --accent: 150 22% 92%;
+    --accent-foreground: 150 30% 30%;
 
-    --destructive: 0 55% 50%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 20% 88%;
-    --input: 40 20% 88%;
-    --ring: 145 30% 35%;
+    --border: 35 20% 85%;
+    --input: 35 20% 85%;
+    --ring: 20 55% 45%;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
     /* Custom tokens */
-    --gold: 38 70% 50%;
+    --gold: 38 75% 50%;
     --gold-foreground: 38 70% 18%;
-    --cream: 45 35% 99%;
-    --warm-shadow: 25 15% 60%;
+    --cream: 40 40% 99%;
+    --warm-shadow: 24 15% 50%;
 
     /* Typography */
     --font-display: 'Playfair Display', Georgia, serif;
     --font-body: 'Source Sans 3', system-ui, sans-serif;
 
-    /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(38 65% 55%) 0%, hsl(38 60% 42%) 100%);
+    /* Gradients - warm and inviting */
+    --gradient-gold: linear-gradient(135deg, hsl(32 80% 55%) 0%, hsl(24 70% 45%) 100%);
 
-    /* Shadows - softer and warmer */
-    --shadow-soft: 0 4px 20px -4px hsl(25 15% 50% / 0.15);
-    --shadow-card: 0 8px 30px -8px hsl(25 15% 50% / 0.12);
-    --shadow-hover: 0 12px 40px -8px hsl(25 15% 50% / 0.2);
+    /* Shadows - warm and diffused */
+    --shadow-soft: 0 4px 24px -6px hsl(24 20% 40% / 0.12);
+    --shadow-card: 0 8px 32px -8px hsl(24 20% 40% / 0.10);
+    --shadow-hover: 0 16px 48px -12px hsl(24 20% 40% / 0.18);
   }
 
   .dark {
-    /* Deep warm charcoal - easy on the eyes at night */
-    --background: 220 15% 13%;
-    --foreground: 45 15% 90%;
+    /* Rich charcoal with warm undertones - cozy night reading */
+    --background: 30 12% 10%;
+    --foreground: 38 20% 90%;
 
-    --card: 220 14% 17%;
-    --card-foreground: 45 15% 90%;
+    --card: 30 10% 14%;
+    --card-foreground: 38 20% 90%;
 
-    --popover: 220 14% 17%;
-    --popover-foreground: 45 15% 90%;
+    --popover: 30 10% 14%;
+    --popover-foreground: 38 20% 90%;
 
-    /* Soft teal - gentle on dark backgrounds */
-    --primary: 160 35% 50%;
-    --primary-foreground: 220 15% 10%;
+    /* Warm amber primary - like candlelight */
+    --primary: 32 65% 55%;
+    --primary-foreground: 30 12% 8%;
 
-    --secondary: 220 12% 22%;
-    --secondary-foreground: 45 12% 82%;
+    --secondary: 30 8% 20%;
+    --secondary-foreground: 38 15% 80%;
 
-    --muted: 220 12% 20%;
-    --muted-foreground: 220 8% 55%;
+    --muted: 30 8% 18%;
+    --muted-foreground: 30 6% 52%;
 
-    --accent: 160 18% 22%;
-    --accent-foreground: 160 35% 65%;
+    --accent: 32 20% 20%;
+    --accent-foreground: 32 50% 65%;
 
-    --destructive: 0 50% 45%;
+    --destructive: 0 55% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 12% 25%;
-    --input: 220 12% 25%;
-    --ring: 160 35% 50%;
+    --border: 30 8% 22%;
+    --input: 30 8% 22%;
+    --ring: 32 65% 55%;
 
-    --gold: 38 65% 55%;
-    --warm-shadow: 220 20% 5%;
+    --gold: 38 75% 55%;
+    --warm-shadow: 30 20% 5%;
+
+    --gradient-gold: linear-gradient(135deg, hsl(36 75% 50%) 0%, hsl(28 70% 40%) 100%);
   }
 }
 
@@ -108,10 +110,13 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 }
 
@@ -137,7 +142,7 @@
   }
 
   .bg-gradient-warm {
-    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 100%);
+    background: linear-gradient(165deg, hsl(var(--background)) 0%, hsl(var(--secondary) / 0.6) 50%, hsl(var(--background)) 100%);
   }
 
   .bg-gradient-card {
@@ -157,21 +162,35 @@
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - subtle and refined */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: hsl(var(--muted) / 0.5);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
+  background: hsl(var(--muted-foreground) / 0.25);
   border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Smooth transitions for theme switching */
+body, .bg-card, .bg-background, .bg-muted {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
