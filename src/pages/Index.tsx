@@ -5,6 +5,7 @@ import { FilterTabs } from '@/components/FilterTabs';
 import { BookCard } from '@/components/BookCard';
 import { AddBookForm } from '@/components/AddBookForm';
 import { EmptyState } from '@/components/EmptyState';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { getBookStatus } from '@/types/book';
 
 const Index = () => {
@@ -43,7 +44,10 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <AddBookForm onAdd={addBook} />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <AddBookForm onAdd={addBook} />
+          </div>
         </div>
       </header>
 
