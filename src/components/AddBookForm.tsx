@@ -62,12 +62,12 @@ export function AddBookForm({ onAdd }: AddBookFormProps) {
       {/* Modal Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm animate-fade-in overflow-y-auto"
           onClick={handleClose}
         >
           {/* Modal Content */}
           <div 
-            className="relative w-full max-w-md overflow-hidden rounded-2xl bg-card p-6 shadow-hover animate-scale-in"
+            className="relative w-full max-w-md rounded-2xl bg-card p-6 shadow-hover animate-scale-in max-h-[90vh] overflow-y-auto my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
