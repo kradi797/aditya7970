@@ -47,7 +47,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
               (e.target as HTMLImageElement).src = '/placeholder.svg';
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
           
           {/* Status Badge */}
           <div className={cn(
@@ -95,10 +95,10 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
 
           {/* Title Overlay */}
           <div className="absolute bottom-0 left-0 right-0 p-4 pt-8">
-            <h3 className="font-display text-lg font-bold leading-tight text-card line-clamp-2">
+            <h3 className="font-display text-lg font-bold leading-tight text-white line-clamp-2">
               {book.title}
             </h3>
-            <p className="mt-1 text-sm text-card/80">{book.author}</p>
+            <p className="mt-1 text-sm text-white/80">{book.author}</p>
           </div>
         </div>
 
