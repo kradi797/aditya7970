@@ -151,8 +151,8 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
           
           {/* Right Side - Reflections */}
           <div className="md:w-3/5 flex-1 overflow-y-auto p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Page Reflections</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold text-foreground truncate">Page Reflections</h3>
               {!isAdding && (
                 <Button
                   size="sm"
@@ -161,7 +161,7 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
                     setNewPage(book.currentPage.toString());
                     setIsAdding(true);
                   }}
-                  className="h-8"
+                  className="h-8 flex-shrink-0"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add
