@@ -19,7 +19,7 @@ import { PDFAnnotationCanvas } from './PDFAnnotationCanvas';
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-type ViewMode = 'single' | 'double' | 'fit';
+type ViewMode = 'single' | 'double';
 type AnnotationTool = 'select' | 'highlight' | 'note' | 'draw' | 'text' | null;
 
 interface PDFViewerProps {
@@ -50,6 +50,7 @@ export function PDFViewer({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [viewMode, setViewMode] = useState<ViewMode>('double');
+  const [fitToScreen, setFitToScreen] = useState<boolean>(true);
   const [activeTool, setActiveTool] = useState<AnnotationTool>('select');
   const [selectedColor, setSelectedColor] = useState(annotationColors[0].value);
   const [localAnnotations, setLocalAnnotations] = useState<PDFAnnotation[]>(annotations);
@@ -79,25 +80,27 @@ export function PDFViewer({
     const sidebarWidth = showThumbnails ? 180 : 0;
     const annotationPanelWidth = showAnnotationPanel ? 320 : 0;
     const availableWidth = containerWidth - sidebarWidth - annotationPanelWidth - 80;
-    const availableHeight = window.innerHeight - 200; // Account for header/toolbar
+    const availableHeight = window.innerHeight - 200;
+    const aspectRatio = 0.707; // A4 aspect ratio
     
-    if (viewMode === 'fit') {
-      // Fit to screen - calculate based on available space
-      // Estimate page aspect ratio (typical is ~0.7 width/height for letter)
-      const aspectRatio = 0.707; // A4 aspect ratio
-      const fitByHeight = availableHeight * aspectRatio;
-      const fitByWidth = availableWidth * 0.95;
-      return Math.min(fitByHeight, fitByWidth) * scale;
-    } else if (viewMode === 'double') {
-      // Two-page view - fit both pages side by side
+    if (viewMode === 'double') {
+      // Two-page view
       const maxWidthPerPage = (availableWidth / 2) - 20;
-      const aspectRatio = 0.707;
-      const fitByHeight = availableHeight * aspectRatio * 0.9;
-      return Math.min(maxWidthPerPage, fitByHeight, 600) * scale;
+      if (fitToScreen) {
+        const fitByHeight = availableHeight * aspectRatio * 0.85;
+        return Math.min(maxWidthPerPage, fitByHeight) * scale;
+      }
+      return Math.min(maxWidthPerPage, 500) * scale;
+    } else {
+      // Single page mode
+      if (fitToScreen) {
+        const fitByHeight = availableHeight * aspectRatio;
+        const fitByWidth = availableWidth * 0.9;
+        return Math.min(fitByHeight, fitByWidth) * scale;
+      }
+      return Math.min(availableWidth * 0.7, 700) * scale;
     }
-    // Single page mode
-    return Math.min(availableWidth * 0.8, 800) * scale;
-  }, [containerWidth, viewMode, scale, showThumbnails, showAnnotationPanel]);
+  }, [containerWidth, viewMode, scale, showThumbnails, showAnnotationPanel, fitToScreen]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -111,22 +114,28 @@ export function PDFViewer({
     toast.error('Failed to load PDF');
   };
 
-  const handleZoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
-  const handleZoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
-  const handleResetZoom = () => setScale(1);
+  const handleZoomIn = () => {
+    setFitToScreen(false);
+    setScale(prev => Math.min(prev + 0.25, 3));
+  };
+  const handleZoomOut = () => {
+    setFitToScreen(false);
+    setScale(prev => Math.max(prev - 0.25, 0.5));
+  };
+  const handleResetZoom = () => {
+    setScale(1);
+    setFitToScreen(false);
+  };
   
   const handleFitToScreen = () => {
     setScale(1);
-    // In single mode, fit single page. In double mode, fit both pages.
-    if (viewMode !== 'fit') {
-      setViewMode('fit');
-    }
+    setFitToScreen(true);
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
-    // Reset scale when changing modes for proper fit
     setScale(1);
+    setFitToScreen(true);
   };
 
   const handleToolSelect = (tool: AnnotationTool) => {
@@ -285,7 +294,7 @@ export function PDFViewer({
             Two Page
           </Button>
           <Button
-            variant={viewMode === 'fit' ? 'secondary' : 'ghost'}
+            variant={fitToScreen ? 'secondary' : 'ghost'}
             size="sm"
             onClick={handleFitToScreen}
             className="h-7 px-2 text-xs"
@@ -681,7 +690,7 @@ export function PDFViewer({
             <Columns2 className="h-4 w-4" />
           </Button>
           <Button
-            variant={viewMode === 'fit' ? 'secondary' : 'ghost'}
+            variant={fitToScreen ? 'secondary' : 'ghost'}
             size="sm"
             onClick={handleFitToScreen}
             className="h-8 w-8 p-0"
