@@ -56,8 +56,6 @@
     --font-body: 'Source Sans 3', system-ui, sans-serif;
 
     /* Gradients */
-    --gradient-warm: linear-gradient(135deg, hsl(40 40% 98%) 0%, hsl(35 30% 92%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(40 40% 99%) 0%, hsl(40 33% 96%) 100%);
     --gradient-gold: linear-gradient(135deg, hsl(42 85% 60%) 0%, hsl(42 75% 45%) 100%);
 
     /* Shadows */
@@ -136,11 +134,11 @@
   }
 
   .bg-gradient-warm {
-    background: var(--gradient-warm);
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 100%);
   }
 
   .bg-gradient-card {
-    background: var(--gradient-card);
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%);
   }
 
   .bg-gradient-gold {
