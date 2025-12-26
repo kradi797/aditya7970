@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { X, FileText, Plus, BookOpen, CheckCircle2 } from 'lucide-react';
-import { Book, PageReflection, getBookStatus, getProgressPercentage } from '@/types/book';
+import { X, Plus, BookOpen, CheckCircle2, Smile, Meh, Frown } from 'lucide-react';
+import { Book, PageReflection, MoodType, getBookStatus, getProgressPercentage } from '@/types/book';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -11,10 +11,18 @@ interface BookDetailDialogProps {
   onUpdate: (id: number, updates: Partial<Book>) => void;
 }
 
+const moodEmojis: Record<MoodType, { icon: typeof Smile; label: string; color: string }> = {
+  happy: { icon: Smile, label: 'Happy', color: 'text-green-500' },
+  neutral: { icon: Meh, label: 'Neutral', color: 'text-amber-500' },
+  sad: { icon: Frown, label: 'Sad', color: 'text-blue-500' },
+};
+
 export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetailDialogProps) {
   const [currentPageInput, setCurrentPageInput] = useState(book.currentPage.toString());
   const [newPage, setNewPage] = useState(book.currentPage.toString());
+  const [newTopic, setNewTopic] = useState('');
   const [newText, setNewText] = useState('');
+  const [newMood, setNewMood] = useState<MoodType>('neutral');
   const [isAdding, setIsAdding] = useState(false);
   
   const status = getBookStatus(book);
@@ -43,33 +51,27 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
 
   const handleAddReflection = () => {
     const page = parseInt(newPage);
-    if (isNaN(page) || page < 1 || page > book.totalPages || !newText.trim()) return;
+    if (isNaN(page) || page < 1 || page > book.totalPages || !newTopic.trim()) return;
     
-    const existing = reflections.find(r => r.page === page);
-    let updated: PageReflection[];
+    const newReflection: PageReflection = {
+      page,
+      topic: newTopic.trim(),
+      text: newText.trim(),
+      mood: newMood,
+    };
     
-    if (existing) {
-      updated = reflections.map(r => r.page === page ? { ...r, text: newText.trim() } : r);
-    } else {
-      updated = [...reflections, { page, text: newText.trim() }].sort((a, b) => a.page - b.page);
-    }
+    const updated = [...reflections, newReflection].sort((a, b) => a.page - b.page);
     
     onUpdate(book.id, { pageReflections: updated });
     setNewPage(book.currentPage.toString());
+    setNewTopic('');
     setNewText('');
+    setNewMood('neutral');
     setIsAdding(false);
   };
 
-  const handleDeleteReflection = (page: number) => {
-    onUpdate(book.id, { pageReflections: reflections.filter(r => r.page !== page) });
-  };
-
-  const handleUpdateReflection = (page: number, text: string) => {
-    if (!text.trim()) {
-      handleDeleteReflection(page);
-      return;
-    }
-    onUpdate(book.id, { pageReflections: reflections.map(r => r.page === page ? { ...r, text } : r) });
+  const handleDeleteReflection = (index: number) => {
+    onUpdate(book.id, { pageReflections: reflections.filter((_, i) => i !== index) });
   };
 
   if (!isOpen) return null;
@@ -78,84 +80,79 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl bg-card shadow-2xl animate-fade-in flex flex-col">
-        {/* Header with Cover */}
-        <div className="relative h-48 flex-shrink-0">
-          <img
-            src={book.coverURL || '/placeholder.svg'}
-            alt={`Cover of ${book.title}`}
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/placeholder.svg';
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
-          
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground hover:bg-card transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          
-          {/* Status Badge */}
-          <div className={cn(
-            "absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm",
-            isCompleted 
-              ? "bg-primary/90 text-primary-foreground" 
-              : "bg-gold/90 text-foreground"
-          )}>
-            {isCompleted ? <CheckCircle2 className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
-            {status}
-          </div>
-          
-          {/* Book Info */}
-          <div className="absolute bottom-4 left-4 right-4">
-            <h2 className="font-display text-2xl font-bold text-foreground">{book.title}</h2>
-            <p className="text-muted-foreground">{book.author}</p>
-          </div>
-        </div>
+      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-card shadow-2xl animate-fade-in">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground hover:bg-muted transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
         
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Progress Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Reading Progress</h3>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-semibold text-foreground">{progress}%</span>
+        <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
+          {/* Left Side - Book Cover & Info */}
+          <div className="md:w-2/5 flex-shrink-0 p-6 flex flex-col items-center bg-muted/30">
+            {/* Status Badge */}
+            <div className={cn(
+              "self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold mb-4",
+              isCompleted 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-gold text-foreground"
+            )}>
+              {isCompleted ? <CheckCircle2 className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
+              {status}
             </div>
-            <div className="relative h-3 overflow-hidden rounded-full bg-muted">
-              <div 
-                className={cn(
-                  "absolute inset-y-0 left-0 rounded-full transition-all duration-500",
-                  isCompleted ? "bg-primary" : "bg-gradient-gold"
-                )}
-                style={{ width: `${progress}%` }}
+            
+            {/* Book Cover */}
+            <div className="w-full aspect-[2/3] max-w-[240px] rounded-xl overflow-hidden shadow-lg mb-4">
+              <img
+                src={book.coverURL || '/placeholder.svg'}
+                alt={`Cover of ${book.title}`}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                }}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={book.totalPages}
-                value={currentPageInput}
-                onChange={(e) => handlePageChange(e.target.value)}
-                onBlur={handlePageBlur}
-                className="w-24 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <span className="text-sm text-muted-foreground">of {book.totalPages} pages</span>
+            
+            {/* Book Title & Author */}
+            <h2 className="font-display text-xl font-bold text-foreground text-center">{book.title}</h2>
+            <p className="text-muted-foreground text-sm text-center mb-4">{book.author}</p>
+            
+            {/* Progress Section */}
+            <div className="w-full space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="font-semibold text-foreground">{progress}%</span>
+              </div>
+              <div className="relative h-2.5 overflow-hidden rounded-full bg-muted">
+                <div 
+                  className={cn(
+                    "absolute inset-y-0 left-0 rounded-full transition-all duration-500",
+                    isCompleted ? "bg-primary" : "bg-gradient-gold"
+                  )}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-2 justify-center">
+                <input
+                  type="number"
+                  min={0}
+                  max={book.totalPages}
+                  value={currentPageInput}
+                  onChange={(e) => handlePageChange(e.target.value)}
+                  onBlur={handlePageBlur}
+                  className="w-20 rounded-lg border border-input bg-background px-2 py-1.5 text-sm font-medium text-foreground text-center transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <span className="text-sm text-muted-foreground">of {book.totalPages}</span>
+              </div>
             </div>
           </div>
           
-          {/* Page Reflections Section */}
-          <div className="space-y-3">
+          {/* Right Side - Reflections */}
+          <div className="md:w-3/5 flex-1 overflow-y-auto p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Page Reflections
-              </h3>
+              <h3 className="text-lg font-semibold text-foreground">Page Reflections</h3>
               {!isAdding && (
                 <Button
                   size="sm"
@@ -167,7 +164,7 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
                   className="h-8"
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add Reflection
+                  Add
                 </Button>
               )}
             </div>
@@ -175,31 +172,61 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
             {/* Add new reflection form */}
             {isAdding && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Page</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={book.totalPages}
-                    value={newPage}
-                    onChange={(e) => setNewPage(e.target.value)}
-                    className="w-20 rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
-                  />
-                  <span className="text-sm text-muted-foreground">of {book.totalPages}</span>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Page</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={book.totalPages}
+                      value={newPage}
+                      onChange={(e) => setNewPage(e.target.value)}
+                      className="w-16 rounded-lg border border-input bg-background px-2 py-1.5 text-sm text-foreground text-center focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Mood</span>
+                    <div className="flex gap-1">
+                      {(Object.keys(moodEmojis) as MoodType[]).map((mood) => {
+                        const { icon: Icon, color } = moodEmojis[mood];
+                        return (
+                          <button
+                            key={mood}
+                            onClick={() => setNewMood(mood)}
+                            className={cn(
+                              "p-1.5 rounded-lg transition-all",
+                              newMood === mood 
+                                ? "bg-primary/20 ring-2 ring-primary" 
+                                : "hover:bg-muted"
+                            )}
+                          >
+                            <Icon className={cn("h-5 w-5", color)} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
+                <input
+                  type="text"
+                  value={newTopic}
+                  onChange={(e) => setNewTopic(e.target.value)}
+                  placeholder="Topic title..."
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+                  autoFocus
+                />
                 <textarea
                   value={newText}
                   onChange={(e) => setNewText(e.target.value)}
-                  placeholder="Your reflection for this page..."
-                  className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none h-24"
-                  autoFocus
+                  placeholder="Your thoughts on this topic..."
+                  className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none h-20"
                 />
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setIsAdding(false)} className="flex-1">
                     Cancel
                   </Button>
-                  <Button onClick={handleAddReflection} className="flex-1">
-                    Save Reflection
+                  <Button onClick={handleAddReflection} className="flex-1" disabled={!newTopic.trim()}>
+                    Save
                   </Button>
                 </div>
               </div>
@@ -208,31 +235,45 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
             {/* Existing reflections */}
             <div className="space-y-3">
               {reflections.length === 0 && !isAdding ? (
-                <p className="text-sm text-muted-foreground/60 italic py-4 text-center">
-                  No page reflections yet. Add your thoughts as you read!
+                <p className="text-sm text-muted-foreground/60 italic py-8 text-center">
+                  No reflections yet. Add your thoughts as you read!
                 </p>
               ) : (
-                reflections.map((reflection) => (
-                  <div 
-                    key={reflection.page} 
-                    className="group rounded-xl border border-border bg-muted/30 p-4"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-primary">Page {reflection.page}</span>
-                      <button
-                        onClick={() => handleDeleteReflection(reflection.page)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                reflections.map((reflection, index) => {
+                  const { icon: MoodIcon, color: moodColor } = moodEmojis[reflection.mood || 'neutral'];
+                  return (
+                    <div 
+                      key={`${reflection.page}-${index}`} 
+                      className="group rounded-xl border border-border bg-muted/30 p-4"
+                    >
+                      {/* Topic Header */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-foreground">{reflection.topic || 'Untitled'}</h4>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            Page {reflection.page}
+                          </span>
+                          <MoodIcon className={cn("h-5 w-5", moodColor)} />
+                          <button
+                            onClick={() => handleDeleteReflection(index)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Topic Content */}
+                      {reflection.text && (
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {reflection.text}
+                        </p>
+                      )}
                     </div>
-                    <textarea
-                      value={reflection.text}
-                      onChange={(e) => handleUpdateReflection(reflection.page, e.target.value)}
-                      className="w-full resize-none rounded-lg border-0 bg-transparent p-0 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0 min-h-[60px]"
-                    />
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
