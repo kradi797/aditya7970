@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Trash2, BookOpen, CheckCircle2, Pencil, MessageSquare } from 'lucide-react';
 import { Book, getBookStatus, getProgressPercentage } from '@/types/book';
 import { EditBookForm } from '@/components/EditBookForm';
-import { PageReflections } from '@/components/PageReflections';
+import { BookDetailDialog } from '@/components/BookDetailDialog';
 import { cn } from '@/lib/utils';
 
 interface BookCardProps {
@@ -13,44 +13,29 @@ interface BookCardProps {
 }
 
 export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
-  const [currentPageInput, setCurrentPageInput] = useState(book.currentPage.toString());
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const status = getBookStatus(book);
   const progress = getProgressPercentage(book);
   const isCompleted = status === 'Completed';
-
-  const handlePageChange = useCallback((value: string) => {
-    setCurrentPageInput(value);
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue) && numValue >= 0 && numValue <= book.totalPages) {
-      onUpdate(book.id, { currentPage: numValue });
-    }
-  }, [book.id, book.totalPages, onUpdate]);
-
-  const handlePageBlur = useCallback(() => {
-    const numValue = parseInt(currentPageInput, 10);
-    if (isNaN(numValue) || numValue < 0) {
-      setCurrentPageInput('0');
-      onUpdate(book.id, { currentPage: 0 });
-    } else if (numValue > book.totalPages) {
-      setCurrentPageInput(book.totalPages.toString());
-      onUpdate(book.id, { currentPage: book.totalPages });
-    }
-  }, [currentPageInput, book.id, book.totalPages, onUpdate]);
 
   const handleOverallNotesChange = useCallback((value: string) => {
     onUpdate(book.id, { notes: value });
   }, [book.id, onUpdate]);
 
-  const handlePageReflectionsUpdate = useCallback((pageReflections: typeof book.pageReflections) => {
-    onUpdate(book.id, { pageReflections });
-  }, [book.id, onUpdate]);
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't open detail if clicking on action buttons or textarea
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('textarea')) return;
+    setIsDetailOpen(true);
+  };
 
   return (
     <>
       <div 
-        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in"
+        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer"
         style={{ animationDelay: `${index * 80}ms` }}
+        onClick={handleCardClick}
       >
         {/* Cover Image */}
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted">
@@ -82,14 +67,14 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           {/* Action Buttons */}
           <div className="absolute top-3 right-3 flex gap-2">
             <button
-              onClick={() => setIsEditOpen(true)}
+              onClick={(e) => { e.stopPropagation(); setIsEditOpen(true); }}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/90 text-accent-foreground opacity-0 transition-all duration-200 hover:bg-accent group-hover:opacity-100 focus:opacity-100"
               aria-label="Edit book"
             >
               <Pencil className="h-4 w-4" />
             </button>
             <button
-              onClick={() => onDelete(book.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete(book.id); }}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground opacity-0 transition-all duration-200 hover:bg-destructive group-hover:opacity-100 focus:opacity-100"
               aria-label="Delete book"
             >
@@ -97,8 +82,19 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
             </button>
           </div>
 
+          {/* Progress Overlay */}
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/50">
+            <div 
+              className={cn(
+                "h-full transition-all duration-500",
+                isCompleted ? "bg-primary" : "bg-gradient-gold"
+              )}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
           {/* Title Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-4">
+          <div className="absolute bottom-0 left-0 right-0 p-4 pt-8">
             <h3 className="font-display text-lg font-bold leading-tight text-card line-clamp-2">
               {book.title}
             </h3>
@@ -106,48 +102,15 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           </div>
         </div>
 
-        {/* Card Body */}
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          {/* Progress Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-semibold text-foreground">{progress}%</span>
-            </div>
-            <div className="relative h-2 overflow-hidden rounded-full bg-muted">
-              <div 
-                className={cn(
-                  "absolute inset-y-0 left-0 rounded-full transition-all duration-500",
-                  isCompleted ? "bg-primary" : "bg-gradient-gold"
-                )}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={book.totalPages}
-                value={currentPageInput}
-                onChange={(e) => handlePageChange(e.target.value)}
-                onBlur={handlePageBlur}
-                className="w-20 rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <span className="text-sm text-muted-foreground">
-                of {book.totalPages} pages
-              </span>
-            </div>
+        {/* Card Body - Only Overall Reflection */}
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          {/* Progress Info */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{book.currentPage} / {book.totalPages} pages</span>
+            <span className="font-semibold text-foreground">{progress}%</span>
           </div>
 
-          {/* Page Reflections Section */}
-          <PageReflections
-            reflections={book.pageReflections || []}
-            totalPages={book.totalPages}
-            currentPage={book.currentPage}
-            onUpdate={handlePageReflectionsUpdate}
-          />
-
-          {/* Overall Notes Section */}
+          {/* Overall Reflection */}
           <div className="flex-1 space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
               <MessageSquare className="h-4 w-4" />
@@ -156,6 +119,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
             <textarea
               value={book.notes}
               onChange={(e) => handleOverallNotesChange(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
               placeholder="Your overall thoughts on this book..."
               className="h-20 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
@@ -169,6 +133,14 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         onSave={onUpdate}
+      />
+
+      {/* Book Detail Dialog */}
+      <BookDetailDialog
+        book={book}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onUpdate={onUpdate}
       />
     </>
   );
