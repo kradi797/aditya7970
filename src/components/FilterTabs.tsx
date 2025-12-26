@@ -8,10 +8,11 @@ interface FilterTabsProps {
     all: number;
     reading: number;
     completed: number;
+    later: number;
   };
 }
 
-const filters: FilterType[] = ['All', 'Reading', 'Completed'];
+const filters: FilterType[] = ['All', 'Reading', 'Completed', 'Later'];
 
 export function FilterTabs({ filter, onFilterChange, counts }: FilterTabsProps) {
   const getCount = (f: FilterType) => {
@@ -19,6 +20,7 @@ export function FilterTabs({ filter, onFilterChange, counts }: FilterTabsProps) 
       case 'All': return counts.all;
       case 'Reading': return counts.reading;
       case 'Completed': return counts.completed;
+      case 'Later': return counts.later;
     }
   };
 

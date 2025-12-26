@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
-import { Trash2, BookOpen, CheckCircle2, Pencil, MessageSquare } from 'lucide-react';
+import { Trash2, BookOpen, CheckCircle2, Pencil, MessageSquare, Clock, FileText } from 'lucide-react';
 import { Book, getBookStatus, getProgressPercentage } from '@/types/book';
 import { EditBookForm } from '@/components/EditBookForm';
 import { BookDetailDialog } from '@/components/BookDetailDialog';
+import { MilestoneProgress } from '@/components/MilestoneProgress';
 import { cn } from '@/lib/utils';
 
 interface BookCardProps {
@@ -18,6 +19,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
   const status = getBookStatus(book);
   const progress = getProgressPercentage(book);
   const isCompleted = status === 'Completed';
+  const isLater = status === 'Later';
 
   const handleOverallNotesChange = useCallback((value: string) => {
     onUpdate(book.id, { notes: value });
@@ -54,15 +56,27 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
             "absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm",
             isCompleted 
               ? "bg-primary/90 text-primary-foreground" 
-              : "bg-gold/90 text-foreground"
+              : isLater
+                ? "bg-secondary/90 text-secondary-foreground"
+                : "bg-gold/90 text-foreground"
           )}>
             {isCompleted ? (
               <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : isLater ? (
+              <Clock className="h-3.5 w-3.5" />
             ) : (
               <BookOpen className="h-3.5 w-3.5" />
             )}
             {status}
           </div>
+
+          {/* PDF Indicator */}
+          {book.pdfURL && (
+            <div className="absolute top-3 left-24 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm bg-accent/90 text-accent-foreground">
+              <FileText className="h-3 w-3" />
+              PDF
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="absolute top-3 right-3 flex gap-2">
@@ -102,12 +116,12 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           </div>
         </div>
 
-        {/* Card Body - Only Overall Reflection */}
+        {/* Card Body */}
         <div className="flex flex-1 flex-col gap-3 p-4">
-          {/* Progress Info */}
+          {/* Progress Info with Milestones */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">{book.currentPage} / {book.totalPages} pages</span>
-            <span className="font-semibold text-foreground">{progress}%</span>
+            <MilestoneProgress book={book} compact />
           </div>
 
           {/* Overall Reflection */}

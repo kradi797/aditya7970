@@ -24,6 +24,7 @@ const Index = () => {
     all: allBooks.length,
     reading: allBooks.filter(b => getBookStatus(b) === 'Reading').length,
     completed: allBooks.filter(b => getBookStatus(b) === 'Completed').length,
+    later: allBooks.filter(b => getBookStatus(b) === 'Later').length,
   };
 
   return (

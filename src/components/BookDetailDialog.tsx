@@ -1,8 +1,12 @@
-import { useState, useCallback } from 'react';
-import { X, Plus, BookOpen, CheckCircle2, Smile, Meh, Frown } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import { X, Plus, BookOpen, CheckCircle2, Smile, Meh, Frown, Upload, FileText, Clock, BookMarked } from 'lucide-react';
 import { Book, PageReflection, MoodType, getBookStatus, getProgressPercentage } from '@/types/book';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { PDFViewer } from './PDFViewer';
+import { MilestoneProgress } from './MilestoneProgress';
 
 interface BookDetailDialogProps {
   book: Book;
@@ -24,10 +28,14 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
   const [newText, setNewText] = useState('');
   const [newMood, setNewMood] = useState<MoodType>('neutral');
   const [isAdding, setIsAdding] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const status = getBookStatus(book);
   const progress = getProgressPercentage(book);
   const isCompleted = status === 'Completed';
+  const isLater = status === 'Later';
   const reflections = book.pageReflections || [];
 
   const handlePageChange = useCallback((value: string) => {
@@ -74,7 +82,63 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
     onUpdate(book.id, { pageReflections: reflections.filter((_, i) => i !== index) });
   };
 
+  const handlePDFUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file');
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File size must be less than 50MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileName = `${book.id}-${Date.now()}.pdf`;
+      const { data, error } = await supabase.storage
+        .from('book-pdfs')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('book-pdfs')
+        .getPublicUrl(data.path);
+
+      onUpdate(book.id, { pdfURL: publicUrl });
+      toast.success('PDF uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload PDF');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleToggleLater = () => {
+    const newStatus = book.status === 'later' ? 'reading' : 'later';
+    onUpdate(book.id, { status: newStatus });
+    toast.success(newStatus === 'later' ? 'Added to Read Later' : 'Moved to Reading');
+  };
+
   if (!isOpen) return null;
+
+  if (showPDFViewer && book.pdfURL) {
+    return (
+      <PDFViewer
+        pdfURL={book.pdfURL}
+        bookTitle={book.title}
+        onClose={() => setShowPDFViewer(false)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -91,20 +155,50 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
         
         <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
           {/* Left Side - Book Cover & Info */}
-          <div className="md:w-2/5 flex-shrink-0 p-6 flex flex-col items-center bg-muted/30">
-            {/* Status Badge */}
-            <div className={cn(
-              "self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold mb-4",
-              isCompleted 
-                ? "bg-primary text-primary-foreground" 
-                : "bg-gold text-foreground"
-            )}>
-              {isCompleted ? <CheckCircle2 className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
-              {status}
+          <div className="md:w-2/5 flex-shrink-0 p-6 flex flex-col items-center bg-muted/30 overflow-y-auto">
+            {/* Status Badge & Later Toggle */}
+            <div className="self-stretch flex items-center justify-between mb-4">
+              <div className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
+                isCompleted 
+                  ? "bg-primary text-primary-foreground" 
+                  : isLater
+                    ? "bg-secondary text-secondary-foreground"
+                    : "bg-gold text-foreground"
+              )}>
+                {isCompleted ? <CheckCircle2 className="h-3.5 w-3.5" /> : isLater ? <Clock className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
+                {status}
+              </div>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleLater}
+                className={cn(
+                  "h-8 text-xs",
+                  isLater && "text-primary"
+                )}
+              >
+                <BookMarked className="h-3.5 w-3.5 mr-1" />
+                {isLater ? 'Start Reading' : 'Read Later'}
+              </Button>
             </div>
+
+            {/* Read PDF Button (above cover) */}
+            {book.pdfURL && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowPDFViewer(true)}
+                className="w-full max-w-[240px] mb-3 gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Read PDF
+              </Button>
+            )}
             
             {/* Book Cover */}
-            <div className="w-full max-w-[240px] rounded-xl overflow-hidden shadow-lg mb-4">
+            <div className="w-full max-w-[240px] rounded-xl overflow-hidden shadow-lg mb-3">
               <div className="relative aspect-[2/3] w-full">
                 <img
                   src={book.coverURL || '/placeholder.svg'}
@@ -116,26 +210,37 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
                 />
               </div>
             </div>
+
+            {/* Upload PDF Button (below cover) */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".pdf"
+              onChange={handlePDFUpload}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full max-w-[240px] mb-4 gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              {isUploading ? 'Uploading...' : book.pdfURL ? 'Replace PDF' : 'Upload Your Book'}
+            </Button>
             
             {/* Book Title & Author */}
             <h2 className="font-display text-xl font-bold text-foreground text-center">{book.title}</h2>
             <p className="text-muted-foreground text-sm text-center mb-4">{book.author}</p>
             
-            {/* Progress Section */}
+            {/* Milestone Progress */}
+            <div className="w-full mb-4">
+              <MilestoneProgress book={book} />
+            </div>
+            
+            {/* Page Input */}
             <div className="w-full space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progress</span>
-                <span className="font-semibold text-foreground">{progress}%</span>
-              </div>
-              <div className="relative h-2.5 overflow-hidden rounded-full bg-muted">
-                <div 
-                  className={cn(
-                    "absolute inset-y-0 left-0 rounded-full transition-all duration-500",
-                    isCompleted ? "bg-primary" : "bg-gradient-gold"
-                  )}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
               <div className="flex items-center gap-2 justify-center">
                 <input
                   type="number"
@@ -146,7 +251,7 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
                   onBlur={handlePageBlur}
                   className="w-20 rounded-lg border border-input bg-background px-2 py-1.5 text-sm font-medium text-foreground text-center transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                <span className="text-sm text-muted-foreground">of {book.totalPages}</span>
+                <span className="text-sm text-muted-foreground">of {book.totalPages} pages</span>
               </div>
             </div>
           </div>
