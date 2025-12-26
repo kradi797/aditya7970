@@ -150,7 +150,7 @@ export function BookDetailDialog({ book, isOpen, onClose, onUpdate }: BookDetail
           </div>
           
           {/* Right Side - Reflections */}
-          <div className="md:w-3/5 flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="md:w-3/5 flex-1 overflow-y-auto p-6 pr-8 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-lg font-semibold text-foreground truncate">Page Reflections</h3>
               {!isAdding && (
