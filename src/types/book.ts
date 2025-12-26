@@ -1,6 +1,10 @@
+export type MoodType = 'neutral' | 'sad' | 'happy';
+
 export interface PageReflection {
   page: number;
+  topic: string;
   text: string;
+  mood: MoodType;
 }
 
 export interface Book {
