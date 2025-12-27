@@ -34,11 +34,9 @@ function StatCard({ icon, label, value, delay }: StatCardProps) {
   );
 }
 
-// Generate fire emojis based on streak count (max 7 for display)
+// Show single fire emoji for any streak
 function getStreakDisplay(streak: number): string {
-  if (streak === 0) return '';
-  const count = Math.min(streak, 7);
-  return '🔥'.repeat(count) + (streak > 7 ? '+' : '');
+  return streak > 0 ? '🔥' : '';
 }
 
 export function DashboardStats({ totalBooks, completed, pagesRead, streak = 0 }: DashboardStatsProps) {
