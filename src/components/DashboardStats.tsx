@@ -1,10 +1,13 @@
 import { BookOpen, CheckCircle2, FileText, Flame } from 'lucide-react';
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 
 interface DashboardStatsProps {
   totalBooks: number;
   completed: number;
   pagesRead: number;
   streak?: number;
+  onStreakChange?: (value: number) => void;
 }
 
 interface StatCardProps {
@@ -39,7 +42,31 @@ function getStreakDisplay(streak: number): string {
   return streak > 0 ? '🔥' : '';
 }
 
-export function DashboardStats({ totalBooks, completed, pagesRead, streak = 0 }: DashboardStatsProps) {
+export function DashboardStats({ totalBooks, completed, pagesRead, streak = 0, onStreakChange }: DashboardStatsProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(streak.toString());
+
+  const handleStreakClick = () => {
+    setEditValue(streak.toString());
+    setIsEditing(true);
+  };
+
+  const handleStreakBlur = () => {
+    const newValue = parseInt(editValue, 10);
+    if (!isNaN(newValue) && newValue >= 0 && onStreakChange) {
+      onStreakChange(newValue);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleStreakBlur();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+    }
+  };
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
@@ -73,7 +100,26 @@ export function DashboardStats({ totalBooks, completed, pagesRead, streak = 0 }:
           <div>
             <p className="text-sm font-medium text-muted-foreground">Reading Streak</p>
             <div className="flex items-center gap-2">
-              <p className="font-display text-3xl font-bold text-foreground">{streak}</p>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  min="0"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={handleStreakBlur}
+                  onKeyDown={handleKeyDown}
+                  className="w-20 h-10 font-display text-2xl font-bold"
+                  autoFocus
+                />
+              ) : (
+                <p 
+                  className="font-display text-3xl font-bold text-foreground cursor-pointer hover:text-primary transition-colors"
+                  onClick={handleStreakClick}
+                  title="Click to edit"
+                >
+                  {streak}
+                </p>
+              )}
               <span className="text-lg" title={`${streak} day${streak !== 1 ? 's' : ''} streak`}>
                 {getStreakDisplay(streak)}
               </span>
