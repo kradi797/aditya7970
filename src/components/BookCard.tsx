@@ -45,7 +45,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
   return (
     <>
       <div 
-        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer w-full"
+        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer max-w-[240px] mx-auto"
         style={{ animationDelay: `${index * 80}ms` }}
         onClick={handleCardClick}
       >
