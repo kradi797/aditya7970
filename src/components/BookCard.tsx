@@ -45,7 +45,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
   return (
     <>
       <div 
-        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer max-w-[240px] mx-auto"
+        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer"
         style={{ animationDelay: `${index * 80}ms` }}
         onClick={handleCardClick}
       >
@@ -128,16 +128,16 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           </div>
 
           {/* Title Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-3 pt-6">
-            <h3 className="font-display text-sm font-bold leading-tight text-white line-clamp-2">
+          <div className="absolute bottom-0 left-0 right-0 p-3.5 pt-8">
+            <h3 className="font-display text-base font-bold leading-tight text-white line-clamp-2">
               {book.title}
             </h3>
-            <p className="mt-0.5 text-xs text-white/80">{book.author}</p>
+            <p className="mt-1 text-sm text-white/80">{book.author}</p>
           </div>
         </div>
 
         {/* Card Body */}
-        <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="flex flex-1 flex-col gap-2.5 p-3.5">
           {/* Progress Info with Milestones */}
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">{book.currentPage} / {book.totalPages} pages</span>
