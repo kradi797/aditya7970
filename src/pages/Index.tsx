@@ -25,7 +25,7 @@ const Index = () => {
     stats 
   } = useBooks();
 
-  const { streak, markTodayAsRead } = useReadingStreak();
+  const { streak, markTodayAsRead, setStreak } = useReadingStreak();
 
   // Mark as read when user updates any book (reading activity)
   const handleUpdateBook = (id: number, updates: Parameters<typeof updateBook>[1]) => {
@@ -79,6 +79,7 @@ const Index = () => {
             completed={stats.completed}
             pagesRead={stats.pagesRead}
             streak={streak}
+            onStreakChange={setStreak}
           />
         </section>
 
