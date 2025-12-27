@@ -5,7 +5,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { 
   X, ZoomIn, ZoomOut, Download, 
   BookOpen, Columns2, ChevronLeft, 
-  ChevronRight, Grid3X3, Search,
+  ChevronRight, Grid3X3,
   Maximize, ArrowDownToLine, ArrowRightToLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,9 +39,7 @@ export function PDFViewer({ pdfURL, bookTitle, onClose }: PDFViewerProps) {
   const [showThumbnails, setShowThumbnails] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  // Layout measurements
   
   // Layout measurements
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -288,12 +286,6 @@ export function PDFViewer({ pdfURL, bookTitle, onClose }: PDFViewerProps) {
         case 'Escape':
           onClose();
           break;
-        case 'f':
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            setShowSearch(true);
-          }
-          break;
       }
     };
 
@@ -395,15 +387,6 @@ export function PDFViewer({ pdfURL, bookTitle, onClose }: PDFViewerProps) {
             </Button>
           </div>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowSearch(!showSearch)}
-            className={cn("h-7 w-7 p-0", showSearch && "bg-muted")}
-          >
-            <Search className="h-3.5 w-3.5" />
-          </Button>
-          
           <a href={pdfURL} download target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="h-7 w-7 p-0">
               <Download className="h-3.5 w-3.5" />
@@ -411,24 +394,6 @@ export function PDFViewer({ pdfURL, bookTitle, onClose }: PDFViewerProps) {
           </a>
         </div>
       </header>
-      
-      {/* Search Bar */}
-      {showSearch && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card/80 shrink-0">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search in PDF... (Note: Text search requires text layer)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 flex-1 max-w-md"
-            autoFocus
-          />
-          <Button variant="ghost" size="sm" onClick={() => setShowSearch(false)}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
       
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 shrink-0">
