@@ -101,7 +101,7 @@ const Index = () => {
           {books.length === 0 ? (
             <EmptyState filter={filter} />
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {books.map((book, index) => (
                 <BookCard
                   key={book.id}
