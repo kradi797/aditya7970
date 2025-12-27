@@ -45,7 +45,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
   return (
     <>
       <div 
-        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer"
+        className="group relative flex flex-col overflow-hidden rounded-xl bg-card shadow-card transition-all duration-300 hover:shadow-hover animate-fade-in cursor-pointer max-w-[240px] mx-auto"
         style={{ animationDelay: `${index * 80}ms` }}
         onClick={handleCardClick}
       >
@@ -63,7 +63,7 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           
           {/* Status Badge */}
           <div className={cn(
-            "absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm",
+            "absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold backdrop-blur-sm",
             isCompleted 
               ? "bg-primary/90 text-primary-foreground" 
               : isLater
@@ -71,18 +71,18 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
                 : "bg-gold/90 text-foreground"
           )}>
             {isCompleted ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
+              <CheckCircle2 className="h-3 w-3" />
             ) : isLater ? (
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="h-3 w-3" />
             ) : (
-              <BookOpen className="h-3.5 w-3.5" />
+              <BookOpen className="h-3 w-3" />
             )}
             {status}
           </div>
 
           {/* Priority Badge */}
           {(book.priority && book.priority !== 'none') && (
-            <div className="absolute top-3 left-24">
+            <div className="absolute top-2 left-20">
               <PriorityBadge priority={book.priority} compact onClick={cyclePriority} />
             </div>
           )}
@@ -90,29 +90,29 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           {/* PDF Indicator */}
           {book.pdfURL && (
             <div className={cn(
-              "absolute top-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm bg-accent/90 text-accent-foreground",
-              book.priority && book.priority !== 'none' ? "left-36" : "left-24"
+              "absolute top-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium backdrop-blur-sm bg-accent/90 text-accent-foreground",
+              book.priority && book.priority !== 'none' ? "left-28" : "left-20"
             )}>
-              <FileText className="h-3 w-3" />
+              <FileText className="h-2.5 w-2.5" />
               PDF
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="absolute top-3 right-3 flex gap-2">
+          <div className="absolute top-2 right-2 flex gap-1.5">
             <button
               onClick={(e) => { e.stopPropagation(); setIsEditOpen(true); }}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/90 text-accent-foreground opacity-0 transition-all duration-200 hover:bg-accent group-hover:opacity-100 focus:opacity-100"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/90 text-accent-foreground opacity-0 transition-all duration-200 hover:bg-accent group-hover:opacity-100 focus:opacity-100"
               aria-label="Edit book"
             >
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-3 w-3" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(book.id); }}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground opacity-0 transition-all duration-200 hover:bg-destructive group-hover:opacity-100 focus:opacity-100"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground opacity-0 transition-all duration-200 hover:bg-destructive group-hover:opacity-100 focus:opacity-100"
               aria-label="Delete book"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3 w-3" />
             </button>
           </div>
 
@@ -128,35 +128,42 @@ export function BookCard({ book, onUpdate, onDelete, index }: BookCardProps) {
           </div>
 
           {/* Title Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 pt-8">
-            <h3 className="font-display text-lg font-bold leading-tight text-white line-clamp-2">
+          <div className="absolute bottom-0 left-0 right-0 p-3 pt-6">
+            <h3 className="font-display text-sm font-bold leading-tight text-white line-clamp-2">
               {book.title}
             </h3>
-            <p className="mt-1 text-sm text-white/80">{book.author}</p>
+            <p className="mt-0.5 text-xs text-white/80">{book.author}</p>
           </div>
         </div>
 
         {/* Card Body */}
-        <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex flex-1 flex-col gap-2 p-3">
           {/* Progress Info with Milestones */}
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">{book.currentPage} / {book.totalPages} pages</span>
             <MilestoneProgress book={book} compact />
           </div>
 
-          {/* Overall Reflection */}
-          <div className="flex-1 space-y-2">
-            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              <MessageSquare className="h-4 w-4" />
-              Overall Reflection
-            </label>
-            <textarea
-              value={book.notes}
-              onChange={(e) => handleOverallNotesChange(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Your overall thoughts on this book..."
-              className="h-20 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+          {/* Learning Section - Redesigned */}
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
+                <MessageSquare className="h-3 w-3 text-primary" />
+              </div>
+              <span className="text-xs font-semibold text-foreground">What I Learned</span>
+            </div>
+            <div className="relative">
+              <textarea
+                value={book.notes}
+                onChange={(e) => handleOverallNotesChange(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Something you learned from this book..."
+                className="h-16 w-full resize-none rounded-lg border-0 bg-muted/50 px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 transition-all focus:bg-muted focus:outline-none focus:ring-1 focus:ring-primary/30"
+              />
+              <div className="absolute bottom-1 right-1.5 text-[9px] text-muted-foreground/40">
+                {book.notes?.length || 0} chars
+              </div>
+            </div>
           </div>
         </div>
       </div>
